@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@gradio/client": "^2.5.0",
+    "@huggingface/inference": "^4.13.26",
     "lucide-react": "^1.31.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
