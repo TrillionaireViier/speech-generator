@@ -33,8 +33,8 @@ export default function App() {
   const [hfToken, setHfToken] = useState('');
 
   // --- VOICE STUDIO STATE ---
-  const [voiceText, setVoiceText] = useState('Привет! Теперь я не только клонирую голоса, но и рисую картины.');
-  const [language, setLanguage] = useState('ru');
+  const [voiceText, setVoiceText] = useState('Hello! Now I can not only clone voices, but also paint pictures.');
+  const [language, setLanguage] = useState('en');
   const [selectedPreset, setSelectedPreset] = useState(PRESET_VOICES[0].id);
   const [useCustomAudio, setUseCustomAudio] = useState(false);
   const [customAudioFile, setCustomAudioFile] = useState(null);
