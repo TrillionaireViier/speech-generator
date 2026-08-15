@@ -78,12 +78,12 @@ export default function App() {
     setStatusMessage('Connecting to Hugging Face XTTS Space...');
 
     try {
-      // 1. Connect to the public XTTS Space via Gradio Client
-      // Pass the Hugging Face token if provided to bypass some limits or access private spaces
+      // 1. Connect to the public F5-TTS Space (mrfakename/E2-F5-TTS)
+      // Pass the Hugging Face token if provided to bypass some limits
       const clientOptions = hfToken.trim() ? { hf_token: hfToken.trim() } : {};
-      const app = await Client.connect("coqui/xtts", clientOptions);
+      const app = await Client.connect("mrfakename/E2-F5-TTS", clientOptions);
       
-      setStatusMessage('Connected! Sending audio and text for inference (Queueing)...');
+      setStatusMessage('Connected! Sending audio and text for F5-TTS inference (Queueing)...');
 
       // 2. Prepare the Reference Audio File
       let referenceAudioBlob = null;
@@ -91,21 +91,20 @@ export default function App() {
       if (useCustomAudio && customAudioFile) {
         referenceAudioBlob = customAudioFile;
       } else {
-        // If a preset is selected, we need an actual file to send to Gradio.
-        // Since presets are empty placeholders right now, we throw an error to guide the user.
         throw new Error('Preset voices currently lack actual audio files. Please use "Upload Custom Voice" for this live demo.');
       }
 
       // 3. Call the predict endpoint
-      // Typical XTTS endpoint takes: [prompt, language, audio_file, mic_audio, cleanup_bool, no_lang_auto_detect_bool]
-      // We pass the required arguments based on typical coqui/xtts schema.
-      const result = await app.predict("/predict", [
-        text, 		      // string  in 'Text Prompt' Textbox component		
-        language, 	    // string  in 'Language' Dropdown component		
+      // F5-TTS endpoint takes: [ref_audio, ref_text, gen_text, model_name, remove_silences, cross_fade, speed]
+      // Passing an empty string for ref_text triggers Auto-Transcription via Whisper!
+      const result = await app.predict("/infer", [
         referenceAudioBlob, // blob in 'Reference Audio' Audio component		
-        null, 		      // blob in 'Use Microphone for Reference' Audio component		
-        false, 		      // boolean  in 'Cleanup Reference Voice' Checkbox component
-        true            // boolean  in 'Do not use language auto-detect' Checkbox component
+        "", 	              // string  in 'Reference Text' Textbox component (Auto Transcribe)		
+        text, 	            // string  in 'Text to Generate' Textbox component		
+        "F5-TTS", 	        // string  in 'Model' Radio component		
+        false, 	            // boolean  in 'Remove Silences' Checkbox component		
+        0, 	                // number  in 'Cross-Fade Duration (s)' Slider component		
+        1, 	                // number  in 'Speed' Slider component
       ]);
 
       setStatusMessage('Audio generated successfully! Receiving file...');
@@ -121,7 +120,7 @@ export default function App() {
           setIsPlaying(true);
         }
       } else {
-        throw new Error('Invalid response received from the XTTS API.');
+        throw new Error('Invalid response received from the F5-TTS API.');
       }
       
     } catch (err) {
