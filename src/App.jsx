@@ -37,6 +37,7 @@ const SUPPORTED_LANGUAGES = [
 export default function App() {
   const [text, setText] = useState('Привет! Это тест клонирования голоса через открытую нейросеть XTTS.');
   const [language, setLanguage] = useState('ru');
+  const [hfToken, setHfToken] = useState('');
   
   const [selectedPreset, setSelectedPreset] = useState(PRESET_VOICES[0].id);
   const [useCustomAudio, setUseCustomAudio] = useState(false);
@@ -78,8 +79,9 @@ export default function App() {
 
     try {
       // 1. Connect to the public XTTS Space via Gradio Client
-      // Note: "coqui/xtts" is a popular public space. If it's asleep, it might take a while to wake up.
-      const app = await Client.connect("coqui/xtts");
+      // Pass the Hugging Face token if provided to bypass some limits or access private spaces
+      const clientOptions = hfToken.trim() ? { hf_token: hfToken.trim() } : {};
+      const app = await Client.connect("coqui/xtts", clientOptions);
       
       setStatusMessage('Connected! Sending audio and text for inference (Queueing)...');
 
@@ -263,24 +265,41 @@ export default function App() {
           {/* Sidebar Actions & Visualizer */}
           <div className="bg-[#0a0a0a] border border-[#222] rounded-2xl p-6 flex flex-col justify-between">
             
-            <div className="h-40 bg-black border border-[#222] rounded-xl flex items-center justify-center gap-2 overflow-hidden relative mb-8">
-              {isGenerating ? (
-                <div className="text-[#00f3ff] font-mono text-sm flex flex-col items-center gap-3 w-full px-4">
-                  <Loader2 className="w-8 h-8 animate-spin" /> 
-                  <span className="text-center w-full truncate">{statusMessage}</span>
-                </div>
-              ) : isPlaying ? (
-                <>
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#00f3ff]/10 via-[#ff2a85]/10 to-[#b026ff]/10 animate-pulse" />
-                  {[...Array(15)].map((_, i) => (
-                    <div key={i} className="w-2 rounded-full audio-bar" style={{ animationDelay: `${Math.random()}s` }} />
-                  ))}
-                </>
-              ) : (
-                <div className="text-[#444] font-mono text-sm flex items-center gap-2">
-                  <Square className="w-4 h-4" /> Ready for Live Clone
-                </div>
-              )}
+            <div className="space-y-6 mb-8">
+              {/* HF Token Input */}
+              <div>
+                <label className="block text-xs font-bold text-[#666] uppercase mb-2">Hugging Face Token (Optional)</label>
+                <input
+                  type="password"
+                  value={hfToken}
+                  onChange={(e) => setHfToken(e.target.value)}
+                  placeholder="hf_..."
+                  className="w-full bg-black border border-[#333] text-white p-3 rounded-xl focus:outline-none focus:neon-border-cyan font-mono text-xs"
+                />
+                <p className="text-[#555] text-[10px] mt-2 font-mono uppercase">
+                  Helps bypass rate limits on public spaces.
+                </p>
+              </div>
+
+              <div className="h-40 bg-black border border-[#222] rounded-xl flex items-center justify-center gap-2 overflow-hidden relative">
+                {isGenerating ? (
+                  <div className="text-[#00f3ff] font-mono text-sm flex flex-col items-center gap-3 w-full px-4">
+                    <Loader2 className="w-8 h-8 animate-spin" /> 
+                    <span className="text-center w-full truncate">{statusMessage}</span>
+                  </div>
+                ) : isPlaying ? (
+                  <>
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#00f3ff]/10 via-[#ff2a85]/10 to-[#b026ff]/10 animate-pulse" />
+                    {[...Array(15)].map((_, i) => (
+                      <div key={i} className="w-2 rounded-full audio-bar" style={{ animationDelay: `${Math.random()}s` }} />
+                    ))}
+                  </>
+                ) : (
+                  <div className="text-[#444] font-mono text-sm flex items-center gap-2">
+                    <Square className="w-4 h-4" /> Ready for Live Clone
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-4">
