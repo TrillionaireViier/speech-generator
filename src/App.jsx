@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Mic, Play, Square, Upload, AudioLines, FileAudio, Loader2, Fingerprint } from 'lucide-react';
+import { Mic, Play, Square, Upload, AudioLines, FileAudio, Loader2, Fingerprint, Settings2, Scissors, Timer, Gauge } from 'lucide-react';
 import { Client } from "@gradio/client";
 
 // Generate 40 Preset Voices (Placeholders for real audio files)
@@ -35,13 +35,19 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 export default function App() {
-  const [text, setText] = useState('Привет! Это тест клонирования голоса через открытую нейросеть XTTS.');
+  const [text, setText] = useState('Привет! Теперь ты можешь настраивать мою скорость и паузы.');
   const [language, setLanguage] = useState('ru');
   const [hfToken, setHfToken] = useState('');
   
   const [selectedPreset, setSelectedPreset] = useState(PRESET_VOICES[0].id);
   const [useCustomAudio, setUseCustomAudio] = useState(false);
   const [customAudioFile, setCustomAudioFile] = useState(null);
+
+  // Advanced AI Controls
+  const [selectedModel, setSelectedModel] = useState('F5-TTS'); // 'F5-TTS' or 'E2-TTS'
+  const [speed, setSpeed] = useState(1.0);
+  const [crossFade, setCrossFade] = useState(0.15);
+  const [removeSilences, setRemoveSilences] = useState(false);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
@@ -62,6 +68,14 @@ export default function App() {
     }
   };
 
+  const handleStop = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlaying(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!text.trim()) {
       setError('Please enter some text.');
@@ -75,7 +89,7 @@ export default function App() {
 
     setIsGenerating(true);
     setError('');
-    setStatusMessage('Connecting to Hugging Face XTTS Space...');
+    setStatusMessage('Connecting to Hugging Face Space...');
 
     try {
       // 1. Connect to the public F5-TTS Space (mrfakename/E2-F5-TTS)
@@ -83,7 +97,7 @@ export default function App() {
       const clientOptions = hfToken.trim() ? { hf_token: hfToken.trim() } : {};
       const app = await Client.connect("mrfakename/E2-F5-TTS", clientOptions);
       
-      setStatusMessage('Connected! Sending audio and text for F5-TTS inference (Queueing)...');
+      setStatusMessage(`Connected! Sending data for ${selectedModel} inference...`);
 
       // 2. Prepare the Reference Audio File
       let referenceAudioBlob = null;
@@ -98,13 +112,13 @@ export default function App() {
       // F5-TTS endpoint takes: [ref_audio, ref_text, gen_text, model_name, remove_silences, cross_fade, speed]
       // Passing an empty string for ref_text triggers Auto-Transcription via Whisper!
       const result = await app.predict("/infer", [
-        referenceAudioBlob, // blob in 'Reference Audio' Audio component		
-        "", 	              // string  in 'Reference Text' Textbox component (Auto Transcribe)		
-        text, 	            // string  in 'Text to Generate' Textbox component		
-        "F5-TTS", 	        // string  in 'Model' Radio component		
-        false, 	            // boolean  in 'Remove Silences' Checkbox component		
-        0, 	                // number  in 'Cross-Fade Duration (s)' Slider component		
-        1, 	                // number  in 'Speed' Slider component
+        referenceAudioBlob,       // blob in 'Reference Audio' Audio component		
+        "", 	                    // string  in 'Reference Text' Textbox component (Auto Transcribe)		
+        text, 	                  // string  in 'Text to Generate' Textbox component		
+        selectedModel, 	          // string  in 'Model' Radio component ('F5-TTS' or 'E2-TTS')	
+        removeSilences, 	        // boolean  in 'Remove Silences' Checkbox component		
+        parseFloat(crossFade), 	  // number  in 'Cross-Fade Duration (s)' Slider component		
+        parseFloat(speed), 	      // number  in 'Speed' Slider component
       ]);
 
       setStatusMessage('Audio generated successfully! Receiving file...');
@@ -120,7 +134,7 @@ export default function App() {
           setIsPlaying(true);
         }
       } else {
-        throw new Error('Invalid response received from the F5-TTS API.');
+        throw new Error(`Invalid response received from the ${selectedModel} API.`);
       }
       
     } catch (err) {
@@ -142,19 +156,45 @@ export default function App() {
         <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-[#ff2a85] rounded-full blur-[200px] opacity-10" />
       </div>
 
-      <div className="w-full max-w-5xl bg-black/60 backdrop-blur-xl border border-[#333] rounded-3xl p-8 shadow-[0_0_50px_rgba(0,243,255,0.05)]">
+      <div className="w-full max-w-6xl bg-black/60 backdrop-blur-xl border border-[#333] rounded-3xl p-8 shadow-[0_0_50px_rgba(0,243,255,0.05)]">
         
         {/* Header */}
-        <div className="flex items-center gap-4 mb-10 pb-6 border-b border-[#222]">
-          <div className="p-3 bg-black border border-[#00f3ff] rounded-xl neon-border-cyan">
-            <Fingerprint className="w-8 h-8 text-[#00f3ff]" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 pb-6 border-b border-[#222]">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-black border border-[#00f3ff] rounded-xl neon-border-cyan">
+              <Fingerprint className="w-8 h-8 text-[#00f3ff]" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black uppercase tracking-widest text-white neon-text-cyan flex items-center gap-3">
+                Neon <span className="text-[#ff2a85] neon-text-pink">Clone</span>
+                <span className="bg-[#ff2a85]/20 text-[#ff2a85] border border-[#ff2a85]/50 text-[10px] px-2 py-1 rounded-full tracking-normal">PRO MODE</span>
+              </h1>
+              <p className="text-[#888] font-mono text-sm tracking-widest mt-1">F5-TTS & E2-TTS Studio Engine</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-black uppercase tracking-widest text-white neon-text-cyan flex items-center gap-3">
-              Neon <span className="text-[#ff2a85] neon-text-pink">Clone</span>
-              <span className="bg-[#ff2a85]/20 text-[#ff2a85] border border-[#ff2a85]/50 text-[10px] px-2 py-1 rounded-full tracking-normal">LIVE API</span>
-            </h1>
-            <p className="text-[#888] font-mono text-sm tracking-widest mt-1">Direct Connection to Hugging Face XTTS Space</p>
+          
+          {/* Model Selector Toggle */}
+          <div className="flex p-1 bg-black border border-[#333] rounded-xl w-fit">
+            <button
+              onClick={() => setSelectedModel('F5-TTS')}
+              className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+                selectedModel === 'F5-TTS' 
+                ? 'bg-[#00f3ff]/20 text-[#00f3ff] border border-[#00f3ff]/50 shadow-[0_0_15px_rgba(0,243,255,0.3)]' 
+                : 'text-[#666] hover:text-white'
+              }`}
+            >
+              F5-TTS (Best)
+            </button>
+            <button
+              onClick={() => setSelectedModel('E2-TTS')}
+              className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
+                selectedModel === 'E2-TTS' 
+                ? 'bg-[#ff2a85]/20 text-[#ff2a85] border border-[#ff2a85]/50 shadow-[0_0_15px_rgba(255,42,133,0.3)]' 
+                : 'text-[#666] hover:text-white'
+              }`}
+            >
+              E2-TTS (Fast)
+            </button>
           </div>
         </div>
 
@@ -164,9 +204,9 @@ export default function App() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           
-          {/* Main Content */}
+          {/* Main Content (Left Col) */}
           <div className="lg:col-span-2 space-y-8">
             
             {/* Voice Selection */}
@@ -261,7 +301,69 @@ export default function App() {
             </div>
           </div>
 
-          {/* Sidebar Actions & Visualizer */}
+          {/* Settings Panel (Middle Col) */}
+          <div className="bg-[#0a0a0a] border border-[#222] p-6 rounded-2xl flex flex-col gap-8">
+            <label className="flex items-center gap-2 text-sm font-bold text-[#aaa] uppercase tracking-wider border-b border-[#222] pb-3">
+              <Settings2 className="w-4 h-4 text-[#b026ff]" /> Model Settings
+            </label>
+
+            {/* Speed Control */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="flex items-center gap-2 text-xs font-bold text-white uppercase"><Gauge className="w-4 h-4 text-[#00f3ff]" /> Speed</label>
+                <span className="text-[#00f3ff] font-mono text-xs">{speed.toFixed(1)}x</span>
+              </div>
+              <input 
+                type="range" 
+                min="0.5" max="2.0" step="0.1" 
+                value={speed} 
+                onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                className="w-full accent-[#00f3ff]"
+              />
+              <div className="flex justify-between text-[10px] font-mono text-[#555]">
+                <span>Slow (0.5x)</span>
+                <span>Fast (2.0x)</span>
+              </div>
+            </div>
+
+            {/* Cross-Fade / Pauses Control */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="flex items-center gap-2 text-xs font-bold text-white uppercase"><Timer className="w-4 h-4 text-[#ff2a85]" /> Cross-Fade</label>
+                <span className="text-[#ff2a85] font-mono text-xs">{crossFade.toFixed(2)}s</span>
+              </div>
+              <input 
+                type="range" 
+                min="0" max="1.0" step="0.05" 
+                value={crossFade} 
+                onChange={(e) => setCrossFade(parseFloat(e.target.value))}
+                className="w-full accent-[#ff2a85]"
+              />
+              <p className="text-[10px] font-mono text-[#555] leading-tight">
+                Controls the pause duration and blending between sentence fragments.
+              </p>
+            </div>
+
+            {/* Remove Silences Toggle */}
+            <div className="pt-4 border-t border-[#222]">
+              <label className="flex items-center justify-between cursor-pointer group">
+                <div className="flex items-center gap-2 text-xs font-bold text-white uppercase group-hover:text-[#b026ff] transition-colors">
+                  <Scissors className={`w-4 h-4 ${removeSilences ? 'text-[#b026ff]' : 'text-[#666]'}`} /> Remove Silences
+                </div>
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={removeSilences} onChange={() => setRemoveSilences(!removeSilences)} />
+                  <div className={`block w-10 h-6 rounded-full transition-colors ${removeSilences ? 'bg-[#b026ff]' : 'bg-[#333]'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${removeSilences ? 'transform translate-x-4' : ''}`}></div>
+                </div>
+              </label>
+              <p className="text-[10px] font-mono text-[#555] leading-tight mt-3">
+                Automatically cuts out unnaturally long gaps of silence in the generated audio.
+              </p>
+            </div>
+
+          </div>
+
+          {/* Sidebar Actions & Visualizer (Right Col) */}
           <div className="bg-[#0a0a0a] border border-[#222] rounded-2xl p-6 flex flex-col justify-between">
             
             <div className="space-y-6 mb-8">
