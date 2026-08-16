@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Mic, Play, Square, Upload, AudioLines, FileAudio, Loader2, Fingerprint, Settings2, Scissors, Timer, Gauge, Image as ImageIcon, Sparkles, Download, Layers } from 'lucide-react';
+import { Mic, Play, Square, Upload, AudioLines, FileAudio, Loader2, Fingerprint, Settings2, Scissors, Timer, Gauge, Image as ImageIcon, Sparkles, Download, Layers, Video, Film } from 'lucide-react';
 import { Client } from "@gradio/client";
 import { HfInference } from '@huggingface/inference';
 
@@ -58,6 +58,15 @@ export default function App() {
   const [generatedImage, setGeneratedImage] = useState(null);
   const [isImageGenerating, setIsImageGenerating] = useState(false);
   const [imageError, setImageError] = useState('');
+
+  // --- VIDEO STUDIO STATE ---
+  const [videoPrompt, setVideoPrompt] = useState('Cyberpunk neon style, cinematic camera pan');
+  const [selectedVideoModel, setSelectedVideoModel] = useState('Stable Video Diffusion');
+  const [uploadedVideoImage, setUploadedVideoImage] = useState(null);
+  const [generatedVideo, setGeneratedVideo] = useState(null);
+  const [isVideoGenerating, setIsVideoGenerating] = useState(false);
+  const [videoError, setVideoError] = useState('');
+  const videoInputRef = useRef(null);
 
   // --- INITIALIZE HF CLIENT ---
   const hf = new HfInference(hfToken.trim() || undefined);
@@ -191,6 +200,53 @@ export default function App() {
     }
   };
 
+  // --- VIDEO LOGIC ---
+  const handleVideoImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+      setUploadedVideoImage(URL.createObjectURL(file));
+      setVideoError('');
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    const sourceImage = uploadedVideoImage || generatedImage;
+    if (!sourceImage) {
+      setVideoError('Please upload an image or generate one in the Image Studio first.');
+      return;
+    }
+
+    setIsVideoGenerating(true);
+    setVideoError('');
+    setGeneratedVideo(null);
+
+    try {
+      const response = await fetch(sourceImage);
+      const imageBlob = await response.blob();
+      const clientOptions = hfToken.trim() ? { hf_token: hfToken.trim() } : {};
+      
+      const app = await Client.connect("multimodalart/stable-video-diffusion", clientOptions);
+      
+      const result = await app.predict("/video", [
+        imageBlob,
+        "14 frames (faster)",
+        127,
+        6
+      ]);
+
+      if (result && result.data && result.data[0]) {
+        setGeneratedVideo(result.data[0].url || result.data[0]);
+      } else {
+        throw new Error('Invalid response from Video API.');
+      }
+    } catch (err) {
+      console.error(err);
+      setVideoError(err.message || 'Error generating video. The Hugging Face Space might be overloaded.');
+    } finally {
+      setIsVideoGenerating(false);
+    }
+  };
+
   const handleDownloadImage = () => {
     if (generatedImage) {
       const a = document.createElement('a');
@@ -249,6 +305,16 @@ export default function App() {
               }`}
             >
               <ImageIcon className="w-4 h-4" /> Image
+            </button>
+            <button
+              onClick={() => setActiveTab('video')}
+              className={`flex-1 md:flex-none px-8 py-3 rounded-lg font-bold text-sm tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'video' 
+                ? 'bg-[#ffe600]/20 text-[#ffe600] border border-[#ffe600]/50 shadow-[0_0_15px_rgba(255,230,0,0.3)]' 
+                : 'text-[#666] hover:text-white'
+              }`}
+            >
+              <Video className="w-4 h-4" /> Video
             </button>
           </div>
         </div>
